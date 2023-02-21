@@ -1,26 +1,47 @@
 package Model;
 
 public class User {
-    private String fName;
-    private String lName;
+    private String name;
     private String username;
     private String password;
     private String encryptedPassword;
+	private String securityQuestion;
+	private String securityQuestionAnswer;
 
-	public String getFName() {
-		return this.fName;
+	public String getSecurityQuestion() {
+		return securityQuestion;
 	}
 
-	public void setFName(String fName) {
-		this.fName = fName;
+	public void setSecurityQuestion(String securityQuestion) {
+		this.securityQuestion = securityQuestion;
 	}
 
-	public String getLName() {
-		return this.lName;
+	public String getSecurityQuestionAnswer() {
+		return securityQuestionAnswer;
 	}
 
-	public void setLName(String lName) {
-		this.lName = lName;
+	public void setSecurityQuestionAnswer(String securityQuestionAnswer) {
+		this.securityQuestionAnswer = securityQuestionAnswer;
+	}
+
+	public User(){
+
+	}
+
+	public User(String name, String username, String password,String securityQuestion, String securityAnswer){
+		this.name = name;
+		this.username = username;
+		this.password = password;
+		this.securityQuestion = securityQuestion;
+		this.securityQuestionAnswer = securityAnswer;
+	}
+
+	public String getName() {
+		return this.name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 
 	public String getUsername() {
