@@ -41,6 +41,7 @@ public class DatabaseManagementSystem {
                     break;
             }
         }
+        System.out.println("Bye");
     }
 
     /**
