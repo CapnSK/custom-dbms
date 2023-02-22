@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 import Enums.ConstraintType;
 import Enums.DDLCommandType;
 import Enums.DMLCommandType;
+import Enums.DataType;
 import Model.internal.Column;
 import Model.internal.Table;
 import Utils.Constants;
@@ -160,13 +161,26 @@ public class QueryService {
                 if(tokens.size() <= 3){
                     column = new Column();
                     column.setName(tokens.get(0).replaceFirst("\\(", ""));
-                    column.setDataType(tokens.get(1));
+                    column.setDataType(mapDataType(tokens.get(1)));
                     if(tokens.size() == 3){
                         column.setConstraints(retrieveConstraints(tokens.get(2)));
                     }
                 }
                 return column;
             }).collect(Collectors.toList());
+        }
+
+        private static DataType mapDataType(String rawType){
+            DataType dataType = null;
+            if(rawType != null){
+                if(rawType.toUpperCase().contains("VARCHAR")){
+                    dataType = DataType.VARCHAR;
+                }
+                else{
+                    dataType = DataType.valueOf(rawType);
+                }
+            }
+            return dataType;
         }
 
         private static List<ConstraintType> retrieveConstraints(String token){
