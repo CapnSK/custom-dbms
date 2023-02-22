@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import java.util.stream.Stream;
 
 import Model.User;
+import Utils.Constants;
 
 public class PersistenceService {
     private static List<User> usersCache = null;
@@ -18,9 +20,9 @@ public class PersistenceService {
     private PersistenceService(){
 
     }
-
-    private static String delimiter = "_$_";
-    private static String userStore = "/data/users.txt";
+    private static String ROOT_DIR = System.getProperty("user.dir");
+    private static String DATA_DIR = "/data/";
+    private static String USER_STORE = "users.txt";
 
 
     public static Boolean storeUserCredentials(User user){
@@ -29,7 +31,7 @@ public class PersistenceService {
             && user.getEncryptedPassword() != null 
             && user.getSecurityQuestionAnswer() != null
         ){
-            File file = new File(System.getProperty("user.dir") + userStore);
+            File file = new File(ROOT_DIR + DATA_DIR + USER_STORE);
             if(!file.exists()){
                 try {
                     file.getParentFile().mkdirs();
@@ -43,13 +45,13 @@ public class PersistenceService {
             if(file.isFile() && file.exists()){
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(file,true))) {
                     writer.append(user.getName());
-                    writer.append(delimiter);
+                    writer.append(Constants.FILE_DELIMETER);
                     writer.append(user.getUsername());
-                    writer.append(delimiter);
+                    writer.append(Constants.FILE_DELIMETER);
                     writer.append(user.getEncryptedPassword());
-                    writer.append(delimiter);
+                    writer.append(Constants.FILE_DELIMETER);
                     writer.append(user.getSecurityQuestion());
-                    writer.append(delimiter);
+                    writer.append(Constants.FILE_DELIMETER);
                     writer.append(user.getSecurityQuestionAnswer());
                     writer.append("\n");
                 } catch (IOException e) {
@@ -81,11 +83,11 @@ public class PersistenceService {
                 usersCache.clear();
             }
 
-            try (Scanner fileReader = new Scanner(new File(System.getProperty("user.dir") + userStore))) {
+            try (Scanner fileReader = new Scanner(new File(ROOT_DIR + DATA_DIR + USER_STORE))) {
                 while(fileReader.hasNextLine()){
                     String input = fileReader.nextLine();
                     if(!input.equals("\n")){
-                        List<String> data = Arrays.asList(input.split(delimiter.replace("$", "\\$"), -1));
+                        List<String> data = Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1));
                         if(data.size() == 5){
                             User user = new User(
                                 data.get(0), 
@@ -106,4 +108,32 @@ public class PersistenceService {
         }
         return usersCache;
     }
+
+    public static Boolean dbExists(User user){
+        Boolean dbFound = false;
+        if(user != null && user.getUsername() != null){
+            File file = new File(ROOT_DIR + DATA_DIR + user.getUsername());
+            if(file.exists() && file.isDirectory()){
+                dbFound = Stream.of(file.listFiles())
+                            .filter(File::isDirectory)
+                            .filter(f->f.getName().equals(user.getUsername()))
+                            .count() == 1;
+            } else {
+                dbFound = false;
+            }
+        }
+        return dbFound;
+    }
+
+    public static Boolean createDB(User user, String dbName){
+        Boolean dbCreated = false;;
+        if(!dbExists(user)){
+            File file = new File(ROOT_DIR + DATA_DIR + user.getUsername()+"/"+dbName);
+            file.mkdirs();
+            dbCreated = file.exists();
+        }
+        return dbCreated;
+    }
+
+
 }
