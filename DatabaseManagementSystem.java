@@ -20,9 +20,6 @@ public class DatabaseManagementSystem {
                     Boolean userCreated = UserRegistrationService.registerUser();
                     DatabaseManagementSystem.applicationState = userCreated ? ApplicationState.LOGIN :
                                                                                     ApplicationState.REGISTER;
-                    if(!userCreated){
-                        System.out.println("Could not register user. Please try again");
-                    }
                     break;
                 case LOGIN:
                     Boolean userLoggedIn = AuthenticationService.logInUser();

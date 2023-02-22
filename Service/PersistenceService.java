@@ -62,6 +62,9 @@ public class PersistenceService {
                 userStored = false;
             }
         }
+        if(userStored){
+            PersistenceService.getAllUsers(true);
+        }
         return userStored;
     }
 

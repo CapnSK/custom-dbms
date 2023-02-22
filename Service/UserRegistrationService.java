@@ -21,7 +21,13 @@ public class UserRegistrationService {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        return PersistenceService.storeUserCredentials(user);
+        Boolean userStored = PersistenceService.storeUserCredentials(user);
+        if(!userStored){
+            System.out.println("Could not register user. Please try again");
+        } else {
+            System.out.println("User registered successfully, please login to continue");
+        }
+        return userStored;
     }
 
     private static User createUserModel(){
@@ -71,8 +77,8 @@ public class UserRegistrationService {
     private static String encryptPassword(String password) throws NoSuchAlgorithmException{
         String encryptedPassword = password;
         MessageDigest MD5 = MessageDigest.getInstance(encryptionAlgorithm);
-        MD5.update(encryptedPassword.getBytes(), 0, 0);
-        encryptedPassword = new String(MD5.digest(), StandardCharsets.UTF_8);
+        MD5.update(encryptedPassword.getBytes());
+        encryptedPassword = new String(MD5.digest());
         return encryptedPassword;
     }
 }
