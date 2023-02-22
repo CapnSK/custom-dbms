@@ -27,8 +27,11 @@ public class QueryService {
                     System.out.println(dbName + " database created successfully");
                 }
             }
+            else {
+                System.out.println("Selected database: "+PersistenceService.getDBName(AuthenticationService.getActiveUser()));
+            }
             
-            
+            System.out.println("Enter query: ");
             String query = input.nextLine();
             while(!query.equalsIgnoreCase(Constants.EXIT_COMMAND)){                
                 QueryService.resolveQueries(query);
@@ -137,6 +140,10 @@ public class QueryService {
                 List<Column> columns = extractColumns(query);
                 String tableName = query.substring(0, query.indexOf("(")).split(" ", 3)[2];
                 Table table = new Table(tableName, columns);
+                Boolean tableCreated = PersistenceService.createTable(table);
+                if(!tableCreated){
+                    //provide error message
+                }
             }
             else{
                 //provide error message

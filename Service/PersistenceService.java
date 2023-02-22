@@ -12,6 +12,7 @@ import java.util.Scanner;
 import java.util.stream.Stream;
 
 import Model.User;
+import Model.internal.Table;
 import Utils.Constants;
 
 public class PersistenceService {
@@ -116,13 +117,25 @@ public class PersistenceService {
             if(file.exists() && file.isDirectory()){
                 dbFound = Stream.of(file.listFiles())
                             .filter(File::isDirectory)
-                            .filter(f->f.getName().equals(user.getUsername()))
                             .count() == 1;
             } else {
                 dbFound = false;
             }
         }
         return dbFound;
+    }
+
+    public static String getDBName(User user){
+        String dbName = null;
+        if(user != null && user.getUsername() != null && dbExists(user)){
+            File file = new File(ROOT_DIR + DATA_DIR + user.getUsername());
+            if(file.exists() && file.isDirectory()){
+                dbName = Stream.of(file.listFiles())
+                            .filter(File::isDirectory)
+                            .map(File::getName).findFirst().orElse(null);
+            }
+        }
+        return dbName;
     }
 
     public static Boolean createDB(User user, String dbName){
@@ -135,5 +148,7 @@ public class PersistenceService {
         return dbCreated;
     }
 
-
+    public static Boolean createTable(Table table){
+        return false;
+    }
 }
