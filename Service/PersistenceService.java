@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import Enums.ConstraintType;
 import Model.User;
 import Model.internal.Table;
 import Utils.Constants;
@@ -148,8 +150,55 @@ public class PersistenceService {
         return dbCreated;
     }
 
-    public static Boolean createTable(Table table){
-        
-        return false;
+    public static Boolean createTable(Table table, User user){
+        Boolean tableCreated = false;
+        if(table != null && table.getName() != null && table.getColumns() != null){
+            //1. Create schema file as tablename.schema in physical structure
+            String dbName = getDBName(user);
+            String directoryName = ROOT_DIR + DATA_DIR + user.getUsername()+"/"+dbName;
+            File parentDirectory = new File(directoryName);
+            if(parentDirectory.exists() && parentDirectory.isDirectory()){
+                String tableSchemaFileName = directoryName + "/"+table.getName()+".schema";
+                File tableSchemaFile = new File(tableSchemaFileName);
+                Boolean fileCreated = false;
+                try {
+                    fileCreated = tableSchemaFile.createNewFile();
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+
+                if(fileCreated){
+                    //2. Write schema definition to file
+                    try(BufferedWriter fileWriter = new BufferedWriter(new FileWriter(tableSchemaFile))){
+                        //table created successfully when all data written to file successfully
+                        tableCreated = table.getColumns().stream().map(column -> {
+                            Boolean fileWriteSuccesful = true;
+                            try {
+                                fileWriter.append(column.getName());
+                                fileWriter.append(Constants.FILE_DELIMETER);
+                                fileWriter.append(column.getDataType().getLabel());
+                                fileWriter.append(Constants.FILE_DELIMETER);
+                                fileWriter.append(
+                                    String.join(
+                                        Constants.FILE_DELIMETER,
+                                        column.getConstraints().stream().map(ConstraintType::getLabel).collect(Collectors.toList()))
+                                );
+                                fileWriter.append("\n");
+                            } catch (IOException e) {
+                                fileWriteSuccesful = false;
+                                // TODO Auto-generated catch block
+                                e.printStackTrace();
+                            }
+                            return fileWriteSuccesful;
+                        }).allMatch(success->success);
+                    } catch(IOException e){
+                        e.printStackTrace();
+                    }
+                }
+            }
+            
+        }
+        return tableCreated;
     }
 }

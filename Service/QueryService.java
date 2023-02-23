@@ -141,13 +141,16 @@ public class QueryService {
                 List<Column> columns = extractColumns(query);
                 String tableName = query.substring(0, query.indexOf("(")).split(" ", 3)[2];
                 Table table = new Table(tableName, columns);
-                Boolean tableCreated = PersistenceService.createTable(table);
+                Boolean tableCreated = PersistenceService.createTable(table, AuthenticationService.getActiveUser());
                 if(!tableCreated){
-                    //provide error message
+                    System.out.println("There was an error creating the table. Please try again");
+                }
+                else {
+                    System.out.println(tableName+" was created successfully");
                 }
             }
             else{
-                //provide error message
+                System.out.println("The query you have entered is invalid. Please try again. \n Refer correct schema here: https://www.tutorialspoint.com/sql/sql-create-table.htm");
             }
             
         }
