@@ -153,8 +153,9 @@ public class QueryService {
                 Boolean valid = validateValues(table, values);
 
                 if(valid){
+                    List<String> storeValues = values.stream().map(Pair::getValue).collect(Collectors.toList());
                     //Insert values because they are valid
-                    Boolean insertSuccessful = false;//PersistenceService.insertValues(tableName, values);
+                    Boolean insertSuccessful = PersistenceService.insertRow(tableName, AuthenticationService.getActiveUser(), storeValues);
     
                     if(insertSuccessful){
                         System.out.println("Successfully inserted values in table");
@@ -194,7 +195,7 @@ public class QueryService {
         }
 
         private static Boolean dataIntegrity(Column column, String value){
-            Boolean dataValid = false;
+            Boolean dataValid = true;
             switch(column.getDataType()){
                 case INT:
                     try{
@@ -248,8 +249,31 @@ public class QueryService {
             return dataValid;
         }
 
-        private static Boolean constraintIntegrity(Table table, Column column, Object value){
-            return false;
+        private static Boolean constraintIntegrity(Table table, Column column, String value){
+            Boolean constraintIntegrityValid = true;
+            if(table != null && column != null && value != null && column.getConstraints() != null && !column.getConstraints().isEmpty()){
+                if(column.getConstraints().contains(ConstraintType.PRIMARY_KEY)){
+                    column.getConstraints().remove(ConstraintType.PRIMARY_KEY);
+
+                    column.getConstraints().add(ConstraintType.NOT_NULL);
+                    column.getConstraints().add(ConstraintType.UNIQUE);
+                }
+                constraintIntegrityValid = column.getConstraints().stream().map(constraint ->{
+                    Boolean constraintValid = false;
+                    switch(constraint){
+                        case UNIQUE:
+                            List<String> values = PersistenceService.getColumnData(table.getName(), column.getName(),AuthenticationService.getActiveUser());
+                            constraintValid = values.indexOf(value) == -1;
+                            break;
+                        case NOT_NULL:
+                            constraintValid = value != null;
+                            break;
+                        default:
+                    }
+                    return constraintValid;
+                }).allMatch(valid->valid);
+            }
+            return constraintIntegrityValid;
         }
 
         // "(val1, val2, val3)" -> [val1, val2, val3]

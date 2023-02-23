@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -258,16 +260,53 @@ public class PersistenceService {
         return tableExists;
     }
 
-    public static List<String> fetchTableData(String tableName, User user){
-        List<String> values = null;
+    public static List<List<String>> getTableData(String tableName, User user){
+        List<List<String>> values = null;
         if(tableName != null && user != null && tableExists(tableName, user)){
             File dataFile = new File(ROOT_DIR + DATA_DIR + user.getUsername()+"/"+getDBName(user)+"/"+tableName+".data");
             values = new ArrayList<>();
             if(dataFile.exists() && dataFile.isFile()){
                 try(Scanner fileReader = new Scanner(dataFile)){
-                    String input = fileReader.nextLine();
-                    if(!input.equals("\n")){
-                        values = Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1));
+                    while(fileReader.hasNextLine()){
+                        String input = fileReader.nextLine();
+                        if(!input.equals("\n")){
+                            values.add(Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1)));
+                        }
+                    }
+                } catch(IOException e){
+                    e.printStackTrace();
+                }
+            }
+        }
+        return values;
+    }
+
+    /**
+     * Returns values in raw (string) format for one column
+     * @param tableName
+     * @param columnName
+     * @return
+     */
+    public static List<String> getColumnData(String tableName, String columnName, User user){
+        List<String> values = null;
+        if(tableName != null && user != null && tableExists(tableName, user)){
+            File dataFile = new File(ROOT_DIR + DATA_DIR + user.getUsername()+"/"+getDBName(user)+"/"+tableName+".data");
+            values = new ArrayList<>();
+            Table table = fetchTableSchema(tableName, user);
+            Integer indexOfColumnToFetch = -1;
+            if(table != null && table.getColumns() != null){
+                indexOfColumnToFetch = table.getColumns().stream().map(Column::getName).collect(Collectors.toList()).indexOf(columnName);
+            }
+            if(dataFile.exists() && dataFile.isFile() && indexOfColumnToFetch != -1){
+                try(Scanner fileReader = new Scanner(dataFile)){
+                    while(fileReader.hasNextLine()){
+                        String input = fileReader.nextLine();
+                        if(!input.equals("\n")){
+                            List<String> row = Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1));
+                            if(indexOfColumnToFetch < row.size()){
+                                values.add(row.get(indexOfColumnToFetch));
+                            }
+                        }
                     }
                 } catch(IOException e){
                     e.printStackTrace();
@@ -278,12 +317,15 @@ public class PersistenceService {
     }
 
     public static Boolean insertData(String tablename, List<List<String>> values, User user){
+        return insertData(tablename, values, user, false);
+    }
+
+    public static Boolean insertData(String tablename, List<List<String>> values, User user, Boolean append){
         /** 
-         * Assumption is follwing is done at conceptual level and values to be stored are final
-         * Will always overwrite the data in .data file with new values so provide final list of values
-         * 1. Fetch existing data
-         * 2. Find primary key
-         * 3. Add new data in a sorted manner acc to primary key
+         * Assumption
+         * 1. This method is to insert values in bulk to the table
+         * 2. It will append to the existing file if append is true
+         * 3. When append is true, it is user's responsibility to provide values in sorted manner as per PRIMARY KEY
          */
         AtomicBoolean insertedSuccessfully = new AtomicBoolean(true);
         if(tablename != null && user != null && tableExists(tablename, user)){
@@ -298,9 +340,10 @@ public class PersistenceService {
                 }
 
                 if(fileCreated){
-                    try(BufferedWriter fileWriter = new BufferedWriter(new FileWriter(dataFile))){
+                    try(BufferedWriter fileWriter = new BufferedWriter(new FileWriter(dataFile, !append))){
                         values.stream().forEach(row->{
                             try {
+                                fileWriter.append("\n");
                                 fileWriter.append(String.join(Constants.FILE_DELIMETER,row));
                             } catch (IOException e) {
                                 e.printStackTrace();
@@ -314,5 +357,27 @@ public class PersistenceService {
             }
         }
         return insertedSuccessfully.get();
+    }
+
+    public static Boolean insertRow(String tablename, User user, List<String> row){
+        /** 
+         * Assumptions
+         * 1. Data is already sorted in file
+         * 2. Adding new row means the id will always be in increasing order
+         */
+        Boolean insertedSuccessfully = true;
+        if(tablename != null && user != null && tableExists(tablename, user)){
+            File dataFile = new File(ROOT_DIR + DATA_DIR + user.getUsername()+"/"+getDBName(user)+"/"+tablename+".data");
+            if(dataFile.exists() && dataFile.isFile()){
+                try(BufferedWriter fileWriter = new BufferedWriter(new FileWriter(dataFile, true))){
+                    fileWriter.append("\n");
+                    fileWriter.append(String.join(Constants.FILE_DELIMETER,row));
+                } catch(IOException e){
+                    insertedSuccessfully = false;
+                    e.printStackTrace();
+                }
+            }
+        }
+        return insertedSuccessfully;
     }
 }
