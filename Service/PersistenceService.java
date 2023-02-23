@@ -8,12 +8,15 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import Enums.ConstraintType;
+import Enums.DataType;
 import Model.User;
+import Model.internal.Column;
 import Model.internal.Table;
 import Utils.Constants;
 
@@ -200,5 +203,56 @@ public class PersistenceService {
             
         }
         return tableCreated;
+    }
+
+    public static Table fetchTableSchema(String tableName, User user){
+        Table table = null;
+        if(tableName != null && user.getUsername() != null && dbExists(user) && tableExists(tableName, user)){
+            try(Scanner fileReader = new Scanner(new File(ROOT_DIR + DATA_DIR + user.getUsername()+"/"+getDBName(user)+"/"+tableName+".schema"))){
+                List<Column> columns = new ArrayList<>();
+                while(fileReader.hasNextLine()){
+                    String input = fileReader.nextLine();
+                    if(!input.equals("\n")){
+                        List<String> columnInfo = Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"),3));
+                        if(columnInfo.size() == 3){
+                            String columnName = columnInfo.get(0);
+                            DataType columnType = DataType.valueOf(columnInfo.get(1));
+
+                            List<String> rawConstraints = Arrays.asList(columnInfo.get(2).split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1));
+                            List<ConstraintType> constraints = rawConstraints.stream().map(c->{
+                                ConstraintType constraint = null;
+                                switch(c){
+                                    case "PRIMARY KEY":
+                                        constraint = ConstraintType.PRIMARY_KEY;
+                                        break;
+                                    case "NOT NULL":
+                                        constraint = ConstraintType.NOT_NULL;
+                                        break;
+                                    case "UNIQUE":
+                                        constraint = ConstraintType.UNIQUE;
+                                        break;
+                                    default:
+                                }
+                                return constraint;
+                            }).filter(Objects::nonNull).collect(Collectors.toList());
+                            columns.add(new Column(columnName, columnType, constraints));
+                        }
+                    }
+                }
+                table = new Table(tableName, columns);
+            } catch(IOException e){
+                e.printStackTrace();
+            }
+        }
+        return table;
+    }
+
+    public static Boolean tableExists(String tableName, User user){
+        Boolean tableExists = false;
+        if(tableName != null && user.getUsername() != null && dbExists(user)){
+            File file = new File(ROOT_DIR + DATA_DIR + user.getUsername()+"/"+getDBName(user)+"/"+tableName+".schema");
+            tableExists = file.exists() && file.isFile();
+        }
+        return tableExists;
     }
 }
