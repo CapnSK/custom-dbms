@@ -19,6 +19,7 @@ import Model.User;
 import Model.internal.Column;
 import Model.internal.Table;
 import Utils.Constants;
+import javafx.util.Pair;
 
 public class PersistenceService {
     private static List<User> usersCache = null;
@@ -254,5 +255,9 @@ public class PersistenceService {
             tableExists = file.exists() && file.isFile();
         }
         return tableExists;
+    }
+
+    public static Boolean insertValues(String tablename, List<Pair<Column, Object>> values){
+        return false;
     }
 }

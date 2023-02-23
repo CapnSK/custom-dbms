@@ -7,7 +7,10 @@ import java.util.Objects;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import Enums.ConstraintType;
 import Enums.DDLCommandType;
@@ -16,6 +19,7 @@ import Enums.DataType;
 import Model.internal.Column;
 import Model.internal.Table;
 import Utils.Constants;
+import javafx.util.Pair;
 
 public class QueryService {
     private static Scanner input = new Scanner(System.in);
@@ -55,7 +59,7 @@ public class QueryService {
                     //DML Command flow
                     switch(DMLCommandType.valueOf(command.toUpperCase())){
                         case INSERT:
-                            QueryService.DML.handleInsertQuery(tokens);
+                            QueryService.DML.handleInsertQuery(query);
                             break;
                         case DELETE:
                             QueryService.DML.handleDeleteQuery(tokens);
@@ -86,8 +90,130 @@ public class QueryService {
 
 
     private static class DML{
-        public static void handleInsertQuery(List<String> tokens){
+        public static void handleInsertQuery(String query){
+            /*
+             * FORMAT 1: INSERT INTO tablename (col1name, col2name, ...) VALUES (v1, v2, ...);
+             * FORMAT 2: INSERT INTO tablename VALUES(v1, v2, ...);
+             * Assumption: 
+             */
 
+            Boolean queryValid = validateInsertQuery(query);
+
+            if(queryValid && query != null){
+                List<Pair<Column, Object>> values = new ArrayList<>();
+                String tableName = null;
+                //check if query is in format 1 or format 2 - If paranthesis starts before VALUES keyword
+                if(query.indexOf("(") > query.toUpperCase().indexOf("VALUES")){
+                    //FORMAT 2
+                    //extract table name
+                    tableName = query.split(" ", -1)[2];
+                    final Table table = PersistenceService.fetchTableSchema(tableName, AuthenticationService.getActiveUser());
+                    if(table != null && table.getColumns() != null){
+                        String rawValues = query.substring(query.toUpperCase().indexOf("VALUES")+7);//len("VALUES") + 1
+
+                        List<String> tokenizedValues = mapValues(rawValues);
+                        if(tokenizedValues != null && tokenizedValues.size() == table.getColumns().size()){
+                            IntStream.range(0, tokenizedValues.size()).forEach(index -> {
+                                values.add(new Pair<>(
+                                    table.getColumns().get(index), 
+                                    tokenizedValues.get(index))
+                                );
+                            });
+                        }
+                    }
+
+                }
+                else{
+                    //FORMAT 1
+                    tableName = query.split(" ", -1)[2];
+                    tableName = tableName.replaceAll("\\((.)*", "").strip();
+                    final Table table = PersistenceService.fetchTableSchema(tableName, AuthenticationService.getActiveUser());
+                    
+                    if(table != null && table.getColumns() != null){
+                        String rawValues = query.substring(query.toUpperCase().indexOf("VALUES")+7);
+                        List<String> tokenizedValues = mapValues(rawValues);
+
+                        String rawColumnNames = query.substring(query.indexOf("("), query.indexOf(")"));
+                        List<String> tokenizedCols = mapValues(rawColumnNames);
+
+                        if(tokenizedCols != null && tokenizedValues != null && tokenizedCols.size() == tokenizedValues.size()){
+                            IntStream.range(0, tokenizedCols.size()).forEach(index->{
+                                String colName = tokenizedCols.get(index);
+                                Column column = table.getColumns().stream().filter(col -> col.getName().equals(colName)).findFirst().orElse(null);
+                                if(column != null){
+                                    values.add(new Pair<>(column, tokenizedValues.get(index)));
+                                }
+                            });
+                        }
+                    }
+                }
+                //Validate values against column constraints
+                Boolean valid = validateValues(values);
+
+                if(valid){
+                    //Insert values because they are valid
+                    Boolean insertSuccessful = PersistenceService.insertValues(tableName, values);
+    
+                    if(insertSuccessful){
+                        System.out.println("Successfully inserted values in table");
+                    }
+                    else{
+                        System.out.println("Could not insert values in the table. Please try again.");
+                    }
+                }
+                else{
+                    System.out.println("Values do not match the criteria. Please try again.");
+                }
+
+
+            }
+            else{
+                //error message
+            }
+            // Table table = PersistenceService.fetchTableSchema("table1", AuthenticationService.getActiveUser());
+            // System.out.println("table schema fetched: "+ table.getName());
+
+        }
+
+        private static Boolean validateValues(List<Pair<Column, Object>> values){
+            Boolean isValid = false;
+
+            return isValid;
+        }
+
+        // "(val1, val2, val3)" -> [val1, val2, val3]
+        private static List<String> mapValues(String token){
+            List<String> values = new ArrayList<>();
+            //remove empty white spaces
+            token = token.strip();
+            //remove parantheses at start
+            token = token.replaceFirst("\\(", "");
+            //remove parantheses & empty space at the end
+            token = token.replaceAll("\\s*\\)\\s*;$", "");
+            //split based on , but ensure that if string has a comma do not split there
+            //use RegExp approach to split
+            Pattern pattern = Pattern.compile(Constants.COMMA_SEPARATED_REGEXP);
+            Matcher matcher = pattern.matcher(token);
+
+            while(matcher.find()){
+                values.add(matcher.group());
+            }
+
+            //strip individual values of spaces
+            values = values.stream().map(String::strip).collect(Collectors.toList());
+            
+            return values;
+        }
+
+        private static Boolean validateInsertQuery(String query){
+            Boolean queryValid = false;
+            if(query != null){
+                //check bracket positioning
+                queryValid = query.contains("(") && query.contains(")") && query.indexOf("(") < query.indexOf(")");
+                //check for keywords format
+                queryValid = queryValid && (query.toUpperCase().contains("INTO") && query.toUpperCase().contains("VALUES"));
+            }
+            return queryValid;
         }
 
         public static void handleDeleteQuery(List<String> tokens){
