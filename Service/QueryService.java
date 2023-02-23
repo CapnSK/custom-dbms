@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -139,29 +140,35 @@ public class QueryService {
             
             if(queryValid){
                 List<Column> columns = extractColumns(query);
-                String tableName = query.substring(0, query.indexOf("(")).split(" ", 3)[2];
-                Table table = new Table(tableName, columns);
-                Boolean tableCreated = PersistenceService.createTable(table, AuthenticationService.getActiveUser());
-                if(!tableCreated){
-                    System.out.println("There was an error creating the table. Please try again");
+                if(columns != null){
+                    String tableName = query.substring(0, query.indexOf("(")).split(" ", 3)[2];
+                    Table table = new Table(tableName, columns);
+                    Boolean tableCreated = PersistenceService.createTable(table, AuthenticationService.getActiveUser());
+                    if(!tableCreated){
+                        System.out.println("There was an error creating the table. Please try again");
+                    }
+                    else {
+                        System.out.println(tableName+" was created successfully");
+                    }
                 }
-                else {
-                    System.out.println(tableName+" was created successfully");
+                else{
+                    System.out.println("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-create-table.htm");
                 }
             }
             else{
-                System.out.println("The query you have entered is invalid. Please try again. \n Refer correct schema here: https://www.tutorialspoint.com/sql/sql-create-table.htm");
+                System.out.println("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-create-table.htm");
             }
             
         }
 
         private static List<Column> extractColumns(String query){
             List<String> columns = Arrays.asList(query.substring(query.indexOf("("), query.lastIndexOf(")")).split(",", -1));
-            return columns.stream().filter(Objects::nonNull).map(col -> {
+            AtomicBoolean wrongColumnDefinition = new AtomicBoolean(false);
+            List <Column> mappedColumns = columns.stream().filter(Objects::nonNull).map(col -> {
                 //colname coltype [constraints]
                 List<String> tokens = Arrays.asList(col.stripLeading().split(" ", 3));
                 Column column = null;
-                if(tokens.size() <= 3){
+                if(tokens.size() >= 2 && tokens.size() <= 3){
                     column = new Column();
                     column.setName(tokens.get(0).replaceFirst("\\(", ""));
                     column.setDataType(mapDataType(tokens.get(1)));
@@ -169,8 +176,15 @@ public class QueryService {
                         column.setConstraints(retrieveConstraints(tokens.get(2)));
                     }
                 }
+                else{
+                    wrongColumnDefinition.set(true);
+                }
                 return column;
             }).collect(Collectors.toList());
+            if(wrongColumnDefinition.get()){
+                mappedColumns = null;
+            }
+            return mappedColumns;
         }
 
         private static DataType mapDataType(String rawType){
@@ -223,9 +237,9 @@ public class QueryService {
         private static Boolean validateCreateQuery(String query, List<String> tokens){
             Boolean queryValid = true;
             //1. check brackets
-            queryValid = (query.contains("(") && query.contains(")") && (query.indexOf("(")<query.lastIndexOf(")")));
-            //2. check if min 1 column provided
-            queryValid = queryValid && (query.substring(query.indexOf("("), query.lastIndexOf(")")).split(",", -1).length >= 1);
+            queryValid = (query.contains("(") && query.contains(")") && (query.indexOf("(")<query.indexOf(")")));
+            //2. check if min 1 column provided 
+            queryValid = queryValid && (query.substring(query.indexOf("("), query.lastIndexOf(")")).strip().length()>1);
             //3. find expected keywords
             queryValid = queryValid && (tokens.get(1).equalsIgnoreCase("TABLE"));
             return queryValid;
