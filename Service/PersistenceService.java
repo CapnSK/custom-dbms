@@ -257,6 +257,25 @@ public class PersistenceService {
         return tableExists;
     }
 
+    public static List<String> fetchTableData(String tableName, User user){
+        List<String> values = null;
+        if(tableName != null && user != null && tableExists(tableName, user)){
+            File dataFile = new File(ROOT_DIR + DATA_DIR + user.getUsername()+"/"+getDBName(user)+"/"+tableName+".data");
+            values = new ArrayList<>();
+            if(dataFile.exists() && dataFile.isFile()){
+                try(Scanner fileReader = new Scanner(dataFile)){
+                    String input = fileReader.nextLine();
+                    if(!input.equals("\n")){
+                        values = Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1));
+                    }
+                } catch(IOException e){
+                    e.printStackTrace();
+                }
+            }
+        }
+        return values;
+    }
+
     public static Boolean insertValues(String tablename, List<Pair<Column, Object>> values){
         return false;
     }
