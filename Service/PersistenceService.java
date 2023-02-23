@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -276,7 +277,42 @@ public class PersistenceService {
         return values;
     }
 
-    public static Boolean insertValues(String tablename, List<Pair<Column, Object>> values){
-        return false;
+    public static Boolean insertData(String tablename, List<List<String>> values, User user){
+        /** 
+         * Assumption is follwing is done at conceptual level and values to be stored are final
+         * Will always overwrite the data in .data file with new values so provide final list of values
+         * 1. Fetch existing data
+         * 2. Find primary key
+         * 3. Add new data in a sorted manner acc to primary key
+         */
+        AtomicBoolean insertedSuccessfully = new AtomicBoolean(true);
+        if(tablename != null && user != null && tableExists(tablename, user)){
+            File dataFile = new File(ROOT_DIR + DATA_DIR + user.getUsername()+"/"+getDBName(user)+"/"+tablename+".data");
+            if(dataFile.getParentFile() != null && dataFile.getParentFile().exists()){
+                Boolean fileCreated = false;
+                try {
+                    fileCreated = dataFile.createNewFile();
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+
+                if(fileCreated){
+                    try(BufferedWriter fileWriter = new BufferedWriter(new FileWriter(dataFile))){
+                        values.stream().forEach(row->{
+                            try {
+                                fileWriter.append(String.join(Constants.FILE_DELIMETER,row));
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                                insertedSuccessfully.set(false);
+                            }
+                        });
+                    } catch(IOException e){
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+        return insertedSuccessfully.get();
     }
 }

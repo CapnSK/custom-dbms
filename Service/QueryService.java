@@ -1,5 +1,6 @@
 package Service;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -100,7 +101,7 @@ public class QueryService {
             Boolean queryValid = validateInsertQuery(query);
 
             if(queryValid && query != null){
-                List<Pair<Column, Object>> values = new ArrayList<>();
+                List<Pair<Column, String>> values = new ArrayList<>();
                 String tableName = null;
                 //check if query is in format 1 or format 2 - If paranthesis starts before VALUES keyword
                 if(query.indexOf("(") > query.toUpperCase().indexOf("VALUES")){
@@ -148,11 +149,12 @@ public class QueryService {
                     }
                 }
                 //Validate values against column constraints
-                Boolean valid = validateValues(values);
+                Table table = PersistenceService.fetchTableSchema(tableName, AuthenticationService.getActiveUser());
+                Boolean valid = validateValues(table, values);
 
                 if(valid){
                     //Insert values because they are valid
-                    Boolean insertSuccessful = PersistenceService.insertValues(tableName, values);
+                    Boolean insertSuccessful = false;//PersistenceService.insertValues(tableName, values);
     
                     if(insertSuccessful){
                         System.out.println("Successfully inserted values in table");
@@ -175,10 +177,79 @@ public class QueryService {
 
         }
 
-        private static Boolean validateValues(List<Pair<Column, Object>> values){
+        private static Boolean validateValues(Table table, List<Pair<Column, String>> values){
             Boolean isValid = false;
-
+            if(values != null){
+                //1. Check data type and values
+                isValid = values.stream().map(pair->{
+                    return dataIntegrity(pair.getKey(), pair.getValue());
+                }).allMatch(valid -> valid);
+                
+                //2. Check constraints and validate
+                isValid = isValid && values.stream().map(pair->{
+                    return constraintIntegrity(table, pair.getKey(), pair.getValue());
+                }).allMatch(valid->valid);
+            }
             return isValid;
+        }
+
+        private static Boolean dataIntegrity(Column column, String value){
+            Boolean dataValid = false;
+            switch(column.getDataType()){
+                case INT:
+                    try{
+                        Integer.valueOf(value);
+                    } catch(NumberFormatException e){
+                        e.printStackTrace();
+                        dataValid = false;
+                    }
+                    break;
+                case DOUBLE:
+                    try{
+                        Double.valueOf(value);
+                    } catch(NumberFormatException e){
+                        e.printStackTrace();
+                        dataValid = false;
+                    }
+                    break;
+                case VARCHAR:
+                    //no check required already a string
+                    break;
+                case DATE:
+                    SimpleDateFormat dateFormat = new SimpleDateFormat(Constants.SQL_DEFAULT_DATE_FORMAT);
+                    try{
+                        dateFormat.format(value);
+                    } catch( IllegalArgumentException e){
+                        e.printStackTrace();
+                        dataValid = false;
+                    }
+                    break;
+                case TIME:
+                    SimpleDateFormat timeFormat = new SimpleDateFormat(Constants.SQL_DEFAULT_TIME_FORMAT);
+                    try{
+                        timeFormat.format(value);
+                    } catch( IllegalArgumentException e){
+                        e.printStackTrace();
+                        dataValid = false;
+                    }
+                    break;
+                case DATETIME:
+                    SimpleDateFormat datetimeFormat = new SimpleDateFormat(Constants.SQL_DEFAULT_DATETIME_FORMAT);
+                    try{
+                        datetimeFormat.format(value);
+                    } catch( IllegalArgumentException e){
+                        e.printStackTrace();
+                        dataValid = false;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            return dataValid;
+        }
+
+        private static Boolean constraintIntegrity(Table table, Column column, Object value){
+            return false;
         }
 
         // "(val1, val2, val3)" -> [val1, val2, val3]
