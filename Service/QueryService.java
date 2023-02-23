@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -66,7 +67,7 @@ public class QueryService {
                             QueryService.DML.handleDeleteQuery(tokens);
                             break;
                         case SELECT:
-                            QueryService.DML.handleSelectQuery(tokens);
+                            QueryService.DML.handleSelectQuery(query);
                             break;
                         case UPDATE:
                             QueryService.DML.handleUpdateQuery(tokens);
@@ -171,10 +172,8 @@ public class QueryService {
 
             }
             else{
-                //error message
+                System.out.println("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-insert-query.htm");
             }
-            // Table table = PersistenceService.fetchTableSchema("table1", AuthenticationService.getActiveUser());
-            // System.out.println("table schema fetched: "+ table.getName());
 
         }
 
@@ -311,6 +310,9 @@ public class QueryService {
             return queryValid;
         }
 
+
+
+
         public static void handleDeleteQuery(List<String> tokens){
 
         }
@@ -319,8 +321,12 @@ public class QueryService {
 
         }
 
-        public static void handleSelectQuery(List<String> tokens){
+
+
+        public static void handleSelectQuery(String query){
             /**
+             * Normal SQL query -
+             * 
              * SELECT col1, col2...
              * FROM table1, table2
              * WHERE condition1 AND condition2 ...
@@ -339,8 +345,77 @@ public class QueryService {
              * 7. DISTINCT
              * 8. ORDER BY expression order
              * 9. LIMIT limit
+             * 
+             * Scope of this query:
+             * SELECT colNames FROM tableName [WHERE condition1 [OPERATOR condition2]];
              */
 
+             Boolean queryValid = validateSelectQuery(query);
+
+            if(queryValid){
+                //FROM tableName
+                String tableName = (query.toUpperCase().contains("WHERE") ? 
+                        query.substring(query.toUpperCase().indexOf("FROM")+5, query.toUpperCase().indexOf("WHERE"))
+                        : query.substring(query.toUpperCase().indexOf("FROM")+5, query.toUpperCase().indexOf(";"))).strip();
+                //WHERE Condition
+                
+                //SELECT col1, col2 ...
+                List<String> columnNames = query.contains("*") ? Arrays.asList("*") 
+                                            : Arrays.asList(query.substring(query.toUpperCase().indexOf("SELECT")+6, query.toUpperCase().indexOf("FROM")).strip().split(",\\s*", -1));
+                
+                Table table = PersistenceService.fetchTableSchema(tableName, AuthenticationService.getActiveUser());
+                List<List<String>> data = PersistenceService.getTableData(tableName, AuthenticationService.getActiveUser());
+
+                
+                List<Integer> indicesToFetch = new ArrayList<>();
+                if(table != null && table.getColumns() != null && !columnNames.get(0).equals("*")){
+                    indicesToFetch = IntStream.range(0, table.getColumns().size()).map(index->{
+                        Column column = table.getColumns().get(index);
+                        if(columnNames.contains(column.getName())){
+                            return index;
+                        }
+                        return -1;
+                    }).filter(ind -> ind != -1).boxed().collect(Collectors.toList());
+                }
+                
+                List<String> output = new ArrayList<>();
+                //Add header row
+                if(columnNames.get(0).equals("*") && table != null && table.getColumns() != null){
+                    output.add(String.join(" ", table.getColumns().stream().map(Column::getName).collect(Collectors.toList())));
+                } else{
+                    output.add(String.join(" ",columnNames));
+                }
+                final List<Integer> indicesToFetchFinal = indicesToFetch;
+                if(data != null && !data.isEmpty()){
+                    data.stream().forEach(row->{
+                        if(columnNames.get(0).equals("*")){
+                            output.add(String.join(" ",row));
+                        }
+                        else{
+                            List<String> prunedRow = indicesToFetchFinal.stream().map(row::get).collect(Collectors.toList());
+                            output.add(String.join(" ", prunedRow));
+                        }
+                    });
+                }
+
+                if(!output.isEmpty()){
+                    System.out.println(String.join("\n", output));
+                }
+            } else{
+                System.out.println("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-select-query.htm");
+            }
+            
+        }
+
+        private static Boolean validateSelectQuery(String query){
+            Boolean queryValid = false;
+            if(query != null && !query.isEmpty()){
+                //check for keywords
+                queryValid = query.toUpperCase().contains("FROM");
+                //select columns should be all or at least 1
+                queryValid = queryValid && (query.contains("*") || query.substring(query.toUpperCase().indexOf("SELECT")+7, query.toUpperCase().indexOf("FROM")).strip().split(",\\s*", -1).length >= 1);
+            }
+            return queryValid;
         }
     }
 
