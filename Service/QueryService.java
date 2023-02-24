@@ -19,6 +19,7 @@ import Enums.DDLCommandType;
 import Enums.DMLCommandType;
 import Enums.DataType;
 import Model.internal.Column;
+import Model.internal.Expression;
 import Model.internal.Table;
 import Utils.Constants;
 import javafx.util.Pair;
@@ -353,18 +354,27 @@ public class QueryService {
              Boolean queryValid = validateSelectQuery(query);
 
             if(queryValid){
+                Pair<List<Expression>, String> parsedExpressions = null;
                 //FROM tableName
                 String tableName = (query.toUpperCase().contains("WHERE") ? 
                         query.substring(query.toUpperCase().indexOf("FROM")+5, query.toUpperCase().indexOf("WHERE"))
                         : query.substring(query.toUpperCase().indexOf("FROM")+5, query.toUpperCase().indexOf(";"))).strip();
+                Table table = PersistenceService.fetchTableSchema(tableName, AuthenticationService.getActiveUser());
                 //WHERE Condition
-                
+                String rawConditions = "";
+                if(query.toUpperCase().contains("WHERE")){
+                    rawConditions = query.substring(query.toUpperCase().indexOf("WHERE")+5).strip();
+                    parsedExpressions = parseWhereClause(rawConditions);
+                }
+                List<List<String>> data = PersistenceService.getTableData(tableName, AuthenticationService.getActiveUser());
+
+                //prune data based on where clause
+                List<List<String>> prunedData = applyWhereClause(data, parsedExpressions, table.getColumns());
+
                 //SELECT col1, col2 ...
                 List<String> columnNames = query.contains("*") ? Arrays.asList("*") 
                                             : Arrays.asList(query.substring(query.toUpperCase().indexOf("SELECT")+6, query.toUpperCase().indexOf("FROM")).strip().split(",\\s*", -1));
                 
-                Table table = PersistenceService.fetchTableSchema(tableName, AuthenticationService.getActiveUser());
-                List<List<String>> data = PersistenceService.getTableData(tableName, AuthenticationService.getActiveUser());
 
                 
                 List<Integer> indicesToFetch = new ArrayList<>();
@@ -386,8 +396,8 @@ public class QueryService {
                     output.add(String.join(" ",columnNames));
                 }
                 final List<Integer> indicesToFetchFinal = indicesToFetch;
-                if(data != null && !data.isEmpty()){
-                    data.stream().forEach(row->{
+                if(prunedData != null && !prunedData.isEmpty()){
+                    prunedData.stream().forEach(row->{
                         if(columnNames.get(0).equals("*")){
                             output.add(String.join(" ",row));
                         }
@@ -405,6 +415,191 @@ public class QueryService {
                 System.out.println("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-select-query.htm");
             }
             
+        }
+
+        private static List<List<String>> applyWhereClause(List<List<String>> originalData, Pair<List<Expression>, String> conditions, List<Column> columns){
+            List<List<String>> prunedData = originalData;
+            if(conditions != null && conditions.getKey() != null && !conditions.getKey().isEmpty() && columns != null){
+                Expression expression1 = conditions.getKey().get(0);
+                Expression expression2 = conditions.getKey().size() == 2 ? conditions.getKey().get(1) : null;
+
+                Column column1 = columns.stream().filter(column->column.getName().equals(expression1.getLeftOperand())).findFirst().orElse(null);
+                Column column2 = expression2 != null ? columns.stream().filter(column->column.getName().equals(expression2.getLeftOperand())).findFirst().orElse(null) : null;
+
+                prunedData = IntStream.range(0, originalData.size()).filter(rowIdx -> {
+                    List<String> row = originalData.get(rowIdx);
+                    Integer colInd1 = IntStream.range(0, columns.size()).filter(index->columns.get(index).getName().equals(expression1.getLeftOperand())).findFirst().orElse(-1);
+                    Integer colInd2 = column2 != null ? IntStream.range(0, columns.size()).filter(index->columns.get(index).getName().equals(expression2.getLeftOperand())).findFirst().orElse(-1) : null;
+                    String fieldVal1 = colInd1 != -1 ? row.get(colInd1) : null;
+                    String fieldVal2 = colInd2 != null && colInd2 != -1 ? row.get(colInd2) : null;
+                    Boolean include = evaluateCondition(fieldVal1, expression1, column1);
+                    if(expression2 != null){
+                        Boolean include2 = evaluateCondition(fieldVal2, expression2, column2);
+                        switch(conditions.getValue()){
+                            case "AND":
+                                include = include && include2;
+                                break;
+                            case "OR":
+                                include = include || include2;
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    return include;
+                }).boxed().map(originalData::get).collect(Collectors.toList());
+            }
+            return prunedData;
+        }
+
+        private static Boolean evaluateCondition(
+            String actualValue, 
+            Expression expression,
+            Column column
+        ){
+            Boolean passed = false;
+            if(actualValue != null && expression != null && column != null){
+                String valueToCompare = expression.getRightOperand();
+                String comparator = expression.getOperator();
+                
+
+                switch(column.getDataType()){
+                    //only comparator allowed is = & !=
+                    case DATE:
+                    case DATETIME:
+                    case TIME:
+                    case VARCHAR:
+                        switch(comparator){
+                            case "=":
+                                passed = valueToCompare.equals(actualValue);
+                                break;
+                            case "!=":
+                                passed = !valueToCompare.equals(actualValue);
+                                break;
+                            default:
+                                System.out.println("Invalid WHERE clause comparison");
+                                break;
+                        }
+                        break;
+                    //comparators allowed are <,>,<=,>=,=,!=
+                    case DOUBLE:
+                        Double valueToCompareParsedDouble  = Double.valueOf(valueToCompare);
+                        Double actualValueParsedDouble  = Double.valueOf(actualValue);
+
+                        Integer comparison = actualValueParsedDouble.compareTo(valueToCompareParsedDouble);
+                        switch(comparator){
+                            case "=":
+                                passed = comparison == 0;
+                                break;
+                            case "!=":
+                                passed = comparison != 0;
+                                break;
+                            case ">":
+                                passed = comparison > 0;
+                                break;
+                            case "<":
+                                passed = comparison < 0;
+                                break;
+                            case "<=":
+                                passed = comparison <= 0;
+                                break;
+                            case ">=":
+                                passed = comparison >= 0;
+                                break;
+                            default:
+                                System.out.println("Invalid WHERE clause comparison");
+                                break;
+                        }
+                        break;
+                    case INT:
+                        Integer valueToCompareParsedInt  = Integer.valueOf(valueToCompare);
+                        Integer actualValueParsedInt  = Integer.valueOf(actualValue);
+                        /**
+                         * 0 equal 
+                         * negative actual<compared 
+                         * positive actual>compared
+                         */
+                        comparison = actualValueParsedInt.compareTo(valueToCompareParsedInt);
+                        switch(comparator){
+                            case "=":
+                                passed = comparison == 0;
+                                break;
+                            case "!=":
+                                passed = comparison != 0;
+                                break;
+                            case ">":
+                                passed = comparison > 0;
+                                break;
+                            case "<":
+                                passed = comparison < 0;
+                                break;
+                            case "<=":
+                                passed = comparison <= 0;
+                                break;
+                            case ">=":
+                                passed = comparison >= 0;
+                                break;
+                            default:
+                                System.out.println("Invalid WHERE clause comparison");
+                                break;
+                        }
+                        break;
+                }
+
+            }
+            return passed;
+        }
+
+        /**
+         * LHS operator RHS AND/OR LHS operator RHS
+         * @param rawCondition
+         * @return
+         */
+        private static Pair<List<Expression>, String> parseWhereClause(String rawCondition){
+            Pair<List<Expression>, String> expressions = null;
+            if(rawCondition != null){
+                List<String> splitConditions = Arrays.asList(rawCondition.replaceAll(Constants.BRACKETS_REGEXP, "").replaceAll(";","").split("(OR|AND)", 2)).stream().map(String::strip).collect(Collectors.toList());
+                List<Expression> exps = new ArrayList<>();
+                splitConditions.stream().forEach(condition->{
+                    Expression expression = new Expression();
+                    expression.setLeftOperand(condition.split(Constants.OPERATORS_REGEXP,2)[0].strip());
+                    expression.setRightOperand(condition.split(Constants.OPERATORS_REGEXP,2)[1].strip());
+                    
+                    if(splitConditions.get(0).contains(">=")){
+                        expression.setOperator(">=");
+                    }
+                    else if(splitConditions.get(0).contains(">")){
+                        expression.setOperator(">");
+                    }
+                    else if(splitConditions.get(0).contains("<=")){
+                        expression.setOperator("<=");
+                    }
+                    else if(splitConditions.get(0).contains("<")){
+                        expression.setOperator("<");
+                    }
+                    else if(splitConditions.get(0).contains("!=")){
+                        expression.setOperator("!=");
+                    }
+                    else if(splitConditions.get(0).contains("=")){
+                        expression.setOperator("=");
+                    }
+                    // expression.setOperator(splitConditions.get(0).f);
+                    // Pattern pattern = Pattern.compile(Constants.OPERATORS_REGEXP);
+                    // Matcher matcher = pattern.matcher(condition);
+                    // if(matcher.find()){
+                    // }
+                    exps.add(expression);
+                });
+
+                expressions = new Pair<List<Expression>,String>(
+                    exps, 
+                    exps.size() > 1 ? 
+                            rawCondition.toUpperCase().contains("AND") ? "AND" : "OR" 
+                        : ""
+                );
+
+            }
+            return expressions;
         }
 
         private static Boolean validateSelectQuery(String query){
