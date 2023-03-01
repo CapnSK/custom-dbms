@@ -65,13 +65,13 @@ public class QueryService {
                             QueryService.DML.handleInsertQuery(query);
                             break;
                         case DELETE:
-                            QueryService.DML.handleDeleteQuery(tokens);
+                            QueryService.DML.handleDeleteQuery(query);
                             break;
                         case SELECT:
                             QueryService.DML.handleSelectQuery(query);
                             break;
                         case UPDATE:
-                            QueryService.DML.handleUpdateQuery(tokens);
+                            QueryService.DML.handleUpdateQuery(query);
                             break;
                         default:
                             break;
@@ -314,12 +314,86 @@ public class QueryService {
 
 
 
-        public static void handleDeleteQuery(List<String> tokens){
+        public static void handleDeleteQuery(String query){
+            if(query != null && validateDeleteQuery(query)){
+                Pattern pattern = Pattern.compile(Constants.DELETE_QUERY_REGEXP, Pattern.CASE_INSENSITIVE);
+                Matcher matcher = pattern.matcher(query);
+                if(matcher.find(0)){
+                    String tableName = matcher.group(1);
+                    List<Expression> expressions = new ArrayList<>();
 
+
+                    String colName1 = matcher.group(2);
+                    String operator1 = matcher.group(3);
+                    String valueToCompare1 = matcher.group(4);
+                    Expression expression1 = new Expression();
+                    expression1.setLeftOperand(colName1);
+                    expression1.setRightOperand(valueToCompare1);
+                    expression1.setOperator(operator1);
+
+                    expressions.add(expression1);
+
+                    String colName2 = null;
+                    String valueToCompare2 = null;
+                    String operator2 = null;
+                    Expression expression2 = null;
+
+                    
+                    //contains and/ or clause in where
+                    if(matcher.groupCount()>10){
+                        colName2 = matcher.group(9);
+                        valueToCompare2 = matcher.group(11);
+                        operator2 = matcher.group(10);
+
+                        expression2 = new Expression();
+                        expression2.setLeftOperand(colName2);
+                        expression2.setRightOperand(valueToCompare2);
+                        expression2.setOperator(operator2);
+                        
+                        expressions.add(expression2);
+                    }
+                    
+                    
+                    Pair<List<Expression>, String> conditionToEvaluate = new Pair<List<Expression>,String>(expressions, matcher.groupCount()>10 ? matcher.group(8) : "");
+
+                    List<List<String>> data = PersistenceService.getTableData(tableName, AuthenticationService.getActiveUser());
+                    Table table = PersistenceService.fetchTableSchema(tableName, AuthenticationService.getActiveUser());
+
+                    // Expression
+                    List<List<String>> rowsToDelete = applyWhereClause(data, conditionToEvaluate, table.getColumns());
+                    
+                    List<List<String>> prunedData = data.stream().filter(row->{
+                        return !rowsToDelete.stream().anyMatch(rowToDelete->IsEqual(rowToDelete, row));
+                    }).collect(Collectors.toList());
+
+                    Boolean deletionPersisted = PersistenceService.insertData(tableName, prunedData, AuthenticationService.getActiveUser(), false);
+
+                    if(deletionPersisted){
+                        System.out.println("Data deletion succesful");
+                    }
+                    else{
+                        System.out.println("Could not delete data, please try again");
+                    }
+                }
+            }
         }
 
-        public static void handleUpdateQuery(List<String> tokens){
+        private static Boolean IsEqual(List<String> row1, List<String> row2){
+            return (row1.size() == row2.size()) && IntStream.range(0, row1.size()).boxed().map(index->{
+                return row1.get(index).equals(row2.get(index));
+            }).allMatch(valid->valid);
+        }
 
+        private static Boolean validateDeleteQuery(String query){
+            Pattern pattern = Pattern.compile(Constants.DELETE_QUERY_REGEXP, Pattern.CASE_INSENSITIVE);
+            Matcher matcher = pattern.matcher(query);
+            return matcher.matches();
+        }
+
+
+
+        public static void handleUpdateQuery(String query){
+            
         }
 
 
@@ -431,7 +505,7 @@ public class QueryService {
                     Integer colInd1 = IntStream.range(0, columns.size()).filter(index->columns.get(index).getName().equals(expression1.getLeftOperand())).findFirst().orElse(-1);
                     Integer colInd2 = column2 != null ? IntStream.range(0, columns.size()).filter(index->columns.get(index).getName().equals(expression2.getLeftOperand())).findFirst().orElse(-1) : null;
                     String fieldVal1 = colInd1 != -1 ? row.get(colInd1) : null;
-                    String fieldVal2 = colInd2 != null && colInd2 != -1 ? row.get(colInd2) : null;
+                    String fieldVal2 = !(colInd2 == null || colInd2 == -1) ? row.get(colInd2) : null;
                     Boolean include = evaluateCondition(fieldVal1, expression1, column1);
                     if(expression2 != null){
                         Boolean include2 = evaluateCondition(fieldVal2, expression2, column2);

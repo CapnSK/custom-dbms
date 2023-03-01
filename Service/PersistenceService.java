@@ -96,7 +96,7 @@ public class PersistenceService {
             try (Scanner fileReader = new Scanner(new File(ROOT_DIR + DATA_DIR + USER_STORE))) {
                 while(fileReader.hasNextLine()){
                     String input = fileReader.nextLine();
-                    if(!input.equals("\n")){
+                    if(!input.equals("\n") && !input.isEmpty()){
                         List<String> data = Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1));
                         if(data.size() == 5){
                             User user = new User(
@@ -216,7 +216,7 @@ public class PersistenceService {
                 List<Column> columns = new ArrayList<>();
                 while(fileReader.hasNextLine()){
                     String input = fileReader.nextLine();
-                    if(!input.equals("\n")){
+                    if(!input.equals("\n") && !input.isEmpty()){
                         List<String> columnInfo = Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"),3));
                         if(columnInfo.size() == 3){
                             String columnName = columnInfo.get(0);
@@ -269,7 +269,7 @@ public class PersistenceService {
                 try(Scanner fileReader = new Scanner(dataFile)){
                     while(fileReader.hasNextLine()){
                         String input = fileReader.nextLine();
-                        if(!input.equals("\n")){
+                        if(!input.equals("\n") && !input.isEmpty()){
                             values.add(Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1)));
                         }
                     }
@@ -301,7 +301,7 @@ public class PersistenceService {
                 try(Scanner fileReader = new Scanner(dataFile)){
                     while(fileReader.hasNextLine()){
                         String input = fileReader.nextLine();
-                        if(!input.equals("\n")){
+                        if(!input.equals("\n") && !input.isEmpty()){
                             List<String> row = Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1));
                             if(indexOfColumnToFetch < row.size()){
                                 values.add(row.get(indexOfColumnToFetch));
@@ -330,7 +330,10 @@ public class PersistenceService {
         AtomicBoolean insertedSuccessfully = new AtomicBoolean(true);
         if(tablename != null && user != null && tableExists(tablename, user)){
             File dataFile = new File(ROOT_DIR + DATA_DIR + user.getUsername()+"/"+getDBName(user)+"/"+tablename+".data");
-            if(dataFile.getParentFile() != null && dataFile.getParentFile().exists()){
+            if(dataFile.getParentFile() != null && !dataFile.getParentFile().exists()){
+                dataFile.getParentFile().mkdirs();
+            }
+            if(dataFile.getParentFile() != null && dataFile.getParentFile().exists() && !dataFile.exists()){
                 Boolean fileCreated = false;
                 try {
                     fileCreated = dataFile.createNewFile();
@@ -338,21 +341,21 @@ public class PersistenceService {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
+            }
 
-                if(fileCreated){
-                    try(BufferedWriter fileWriter = new BufferedWriter(new FileWriter(dataFile, !append))){
-                        values.stream().forEach(row->{
-                            try {
-                                fileWriter.append("\n");
-                                fileWriter.append(String.join(Constants.FILE_DELIMETER,row));
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                                insertedSuccessfully.set(false);
-                            }
-                        });
-                    } catch(IOException e){
-                        e.printStackTrace();
-                    }
+            if(dataFile.exists()){
+                try(BufferedWriter fileWriter = new BufferedWriter(new FileWriter(dataFile, append))){
+                    values.stream().forEach(row->{
+                        try {
+                            fileWriter.append(String.join(Constants.FILE_DELIMETER,row));
+                            fileWriter.append("\n");
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            insertedSuccessfully.set(false);
+                        }
+                    });
+                } catch(IOException e){
+                    e.printStackTrace();
                 }
             }
         }
