@@ -3,7 +3,9 @@ package Service;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -338,9 +340,11 @@ public class QueryService {
                     String operator2 = null;
                     Expression expression2 = null;
 
-                    
+                    List<String> nonNullMatchedValues = IntStream.range(0, matcher.groupCount()).boxed().map(matcher::group).filter(val->val!=null).collect(Collectors.toList());
+                    // System.out.println(nonNullMatchedValues);
+
                     //contains and/ or clause in where
-                    if(matcher.groupCount()>10){
+                    if(nonNullMatchedValues.size() > 10){
                         colName2 = matcher.group(9);
                         valueToCompare2 = matcher.group(11);
                         operator2 = matcher.group(10);
@@ -393,10 +397,105 @@ public class QueryService {
 
 
         public static void handleUpdateQuery(String query){
-            
+            if(query != null && validateUpdateQuery(query)){
+                Pattern pattern = Pattern.compile(Constants.UPDATE_QUERY_REGEXP, Pattern.CASE_INSENSITIVE);
+                Matcher matcher = pattern.matcher(query);
+                if(matcher.find(0)){
+                    String tableName = matcher.group(1);
+                    List<Expression> expressions = new ArrayList<>();
+                    Pair<List<Expression>, String> conditionToEvaluate = null;
+                    String updateExpression = matcher.group(2);
+                    
+                    //Prepare where clause
+                    String colName1 = matcher.group(12);
+                    String operator1 = matcher.group(13);
+                    String value1 = matcher.group(14);
+
+                    Expression expression1 = new Expression();
+                    expression1.setLeftOperand(colName1);
+                    expression1.setRightOperand(value1);
+                    expression1.setOperator(operator1);
+
+                    expressions.add(expression1);
+
+                    String colName2 = null;
+                    String operator2 = null;
+                    String value2 = null;
+                    String condition = null;
+
+                    
+                    List<String> nonNullMatchedValues = IntStream.range(0, matcher.groupCount()).boxed().map(matcher::group).filter(val->val!=null).collect(Collectors.toList());
+                    // System.out.println(nonNullMatchedValues);
+
+                    //AND | OR present
+                    if(nonNullMatchedValues.size() > 14){
+                        colName2 = matcher.group(12);
+                        operator2 = matcher.group(13);
+                        value2 = matcher.group(14);
+
+                        Expression expression2 = new Expression();
+                        expression2.setLeftOperand(colName2);
+                        expression2.setRightOperand(value2);
+                        expression2.setOperator(operator2);
+
+                        expressions.add(expression2);
+
+                        condition = matcher.group(18);
+                    }
+
+                    conditionToEvaluate = new Pair<List<Expression>,String>(expressions, condition);
+
+
+                    List<List<String>> data = PersistenceService.getTableData(tableName, AuthenticationService.getActiveUser());
+                    Table table = PersistenceService.fetchTableSchema(tableName, AuthenticationService.getActiveUser());
+
+                    // Expression
+                    List<List<String>> rowsToUpdate = applyWhereClause(data, conditionToEvaluate, table.getColumns());
+                    //columns to update
+                    Map<Integer, String> valuesToUpdate = extractValuesToUpdate(updateExpression, table.getColumns());
+                    
+
+
+                    List<List<String>> updatedData = data.stream().map(row->{
+                        if(rowsToUpdate.stream().anyMatch(rowToCompare -> IsEqual(rowToCompare, row))){
+                            valuesToUpdate.entrySet().stream().forEach((entry)->{
+                                row.set(entry.getKey(), entry.getValue());
+                            });
+                        }
+                        return row;
+                    }).collect(Collectors.toList());
+
+                    Boolean dataUpdated = PersistenceService.insertData(tableName, updatedData, AuthenticationService.getActiveUser(), false);
+
+                    if(dataUpdated){
+                        System.out.println("Data updated successfully");
+                    }
+                    else{
+                        System.out.println("Could not update data, please try again");
+                    }
+                }
+            }
+        }
+        
+        //returns columns to update with the value to update in a table
+        private static Map<Integer, String> extractValuesToUpdate(String updateExp, List<Column> columns){
+            List<String> rawCommaSplit = Arrays.asList(updateExp.split(",")).stream().map(String::strip).collect(Collectors.toList());
+            Map<Integer, String> mappedValues = new HashMap<>();
+            rawCommaSplit.stream().forEach(rawExp -> {
+                String colName = rawExp.split("=")[0].strip();
+                String value = rawExp.split("=")[1].strip();
+                Column col = columns.stream().filter(column->column.getName().equals(colName)).findFirst().orElse(null);
+                Integer colInd = columns.indexOf(col);
+                mappedValues.put(colInd, value);
+            });
+            return mappedValues;
         }
 
-
+        private static Boolean validateUpdateQuery(String query){
+            Pattern pattern = Pattern.compile(Constants.UPDATE_QUERY_REGEXP, Pattern.CASE_INSENSITIVE);
+            Matcher matcher = pattern.matcher(query);
+            return matcher.matches();
+        }
 
         public static void handleSelectQuery(String query){
             /**
