@@ -397,6 +397,7 @@ public class QueryService {
 
 
         public static void handleUpdateQuery(String query){
+            //temp
             if(query != null && validateUpdateQuery(query)){
                 Pattern pattern = Pattern.compile(Constants.UPDATE_QUERY_REGEXP, Pattern.CASE_INSENSITIVE);
                 Matcher matcher = pattern.matcher(query);
