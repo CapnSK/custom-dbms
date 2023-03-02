@@ -28,6 +28,8 @@ import javafx.util.Pair;
 
 public class QueryService {
     private static Scanner input = new Scanner(System.in);
+    private static LogService logger = LogService.getLogger(QueryService.class);
+    
     
     /** Driver method to accept queries and call respective APIs
      * @return Boolean
@@ -35,18 +37,18 @@ public class QueryService {
     public static Boolean acceptQueries(){
         if(AuthenticationService.getActiveUser() != null){
             if(!PersistenceService.dbExists(AuthenticationService.getActiveUser())){
-                System.out.println("Please provide a name for your database");
+                logger.log("Please provide a name for your database");
                 String dbName = input.nextLine();
                 Boolean dbCreated = PersistenceService.createDB(AuthenticationService.getActiveUser(), dbName);
                 if(dbCreated){
-                    System.out.println(dbName + " database created successfully");
+                    logger.log(dbName + " database created successfully");
                 }
             }
             else {
-                System.out.println("Selected database: "+PersistenceService.getDBName(AuthenticationService.getActiveUser()));
+                logger.log("Selected database: "+PersistenceService.getDBName(AuthenticationService.getActiveUser()));
             }
             
-            System.out.println("Enter query: ");
+            logger.log("Enter query: ");
             String query = input.nextLine();
             while(!query.equalsIgnoreCase(Constants.EXIT_COMMAND)){                
                 QueryService.resolveQueries(query);
@@ -65,7 +67,7 @@ public class QueryService {
         if(query != null && !query.isEmpty()){
             List<String> tokens = Arrays.asList(query.split(" ", -1));
             if(tokens.size() < 3){
-                System.out.println("Invalid query please use correct syntax");
+                logger.log("Invalid query please use correct syntax");
             }
             else {
                 String command = tokens.get(0);
@@ -177,20 +179,20 @@ public class QueryService {
                     Boolean insertSuccessful = PersistenceService.insertRow(tableName, AuthenticationService.getActiveUser(), storeValues);
     
                     if(insertSuccessful){
-                        System.out.println("Successfully inserted values in table");
+                        logger.log("Successfully inserted values in table");
                     }
                     else{
-                        System.out.println("Could not insert values in the table. Please try again.");
+                        logger.log("Could not insert values in the table. Please try again.");
                     }
                 }
                 else{
-                    System.out.println("Values do not match the criteria. Please try again.");
+                    logger.log("Values do not match the criteria. Please try again.");
                 }
 
 
             }
             else{
-                System.out.println("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-insert-query.htm");
+                logger.log("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-insert-query.htm");
             }
 
         }
@@ -383,7 +385,7 @@ public class QueryService {
                     Expression expression2 = null;
 
                     List<String> nonNullMatchedValues = IntStream.range(0, matcher.groupCount()).boxed().map(matcher::group).filter(val->val!=null).collect(Collectors.toList());
-                    // System.out.println(nonNullMatchedValues);
+                    // logger.log(nonNullMatchedValues);
 
                     //contains and/ or clause in where
                     if(nonNullMatchedValues.size() > 10){
@@ -415,10 +417,10 @@ public class QueryService {
                     Boolean deletionPersisted = PersistenceService.insertData(tableName, prunedData, AuthenticationService.getActiveUser(), false);
 
                     if(deletionPersisted){
-                        System.out.println("Data deletion succesful");
+                        logger.log("Data deletion succesful");
                     }
                     else{
-                        System.out.println("Could not delete data, please try again");
+                        logger.log("Could not delete data, please try again");
                     }
                 }
             }
@@ -482,7 +484,7 @@ public class QueryService {
 
                     
                     List<String> nonNullMatchedValues = IntStream.range(0, matcher.groupCount()).boxed().map(matcher::group).filter(val->val!=null).collect(Collectors.toList());
-                    // System.out.println(nonNullMatchedValues);
+                    // logger.log(nonNullMatchedValues);
 
                     //AND | OR present
                     if(nonNullMatchedValues.size() > 14){
@@ -525,10 +527,10 @@ public class QueryService {
                     Boolean dataUpdated = PersistenceService.insertData(tableName, updatedData, AuthenticationService.getActiveUser(), false);
 
                     if(dataUpdated){
-                        System.out.println("Data updated successfully");
+                        logger.log("Data updated successfully");
                     }
                     else{
-                        System.out.println("Could not update data, please try again");
+                        logger.log("Could not update data, please try again");
                     }
                 }
             }
@@ -648,10 +650,10 @@ public class QueryService {
                 }
 
                 if(!output.isEmpty()){
-                    System.out.println(String.join("\n", output));
+                    logger.log(String.join("\n", output));
                 }
             } else{
-                System.out.println("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-select-query.htm");
+                logger.log("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-select-query.htm");
             }
             
         }
@@ -730,7 +732,7 @@ public class QueryService {
                                 passed = !valueToCompare.equals(actualValue);
                                 break;
                             default:
-                                System.out.println("Invalid WHERE clause comparison");
+                                logger.log("Invalid WHERE clause comparison");
                                 break;
                         }
                         break;
@@ -760,7 +762,7 @@ public class QueryService {
                                 passed = comparison >= 0;
                                 break;
                             default:
-                                System.out.println("Invalid WHERE clause comparison");
+                                logger.log("Invalid WHERE clause comparison");
                                 break;
                         }
                         break;
@@ -793,7 +795,7 @@ public class QueryService {
                                 passed = comparison >= 0;
                                 break;
                             default:
-                                System.out.println("Invalid WHERE clause comparison");
+                                logger.log("Invalid WHERE clause comparison");
                                 break;
                         }
                         break;
@@ -902,18 +904,18 @@ public class QueryService {
                     Table table = new Table(tableName, columns);
                     Boolean tableCreated = PersistenceService.createTable(table, AuthenticationService.getActiveUser());
                     if(!tableCreated){
-                        System.out.println("There was an error creating the table. Please try again");
+                        logger.log("There was an error creating the table. Please try again");
                     }
                     else {
-                        System.out.println(tableName+" was created successfully");
+                        logger.log(tableName+" was created successfully");
                     }
                 }
                 else{
-                    System.out.println("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-create-table.htm");
+                    logger.log("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-create-table.htm");
                 }
             }
             else{
-                System.out.println("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-create-table.htm");
+                logger.log("The query you have entered is invalid. Please try again. \nRefer correct schema here: https://www.tutorialspoint.com/sql/sql-create-table.htm");
             }
             
         }

@@ -10,6 +10,8 @@ import java.util.Scanner;
 import Model.User;
 
 public class UserRegistrationService {
+    private static LogService logger = LogService.getLogger(UserRegistrationService.class);
+
     private static String encryptionAlgorithm = "MD5";
 
     private static Scanner input = new Scanner(System.in);
@@ -28,9 +30,9 @@ public class UserRegistrationService {
         }
         Boolean userStored = PersistenceService.storeUserCredentials(user);
         if(!userStored){
-            System.out.println("Could not register user. Please try again");
+            logger.log("Could not register user. Please try again");
         } else {
-            System.out.println("User registered successfully, please login to continue");
+            logger.log("User registered successfully, please login to continue");
         }
         return userStored;
     }
@@ -40,32 +42,32 @@ public class UserRegistrationService {
      * @return
      */
     private static User createUserModel(){
-        System.out.println("Please enter your name: ");
+        logger.log("Please enter your name: ");
         String name = input.nextLine();
-        System.out.println("Please enter preferred username (should be unique): ");
+        logger.log("Please enter preferred username (should be unique): ");
         String userName = null;
         Boolean userNameTaken = true;
         do{
             userName = input.nextLine();
             userNameTaken = UserRegistrationService.checkIfUserExists(userName);
             if(userNameTaken){
-                System.out.println("This user name is taken, please enter a different username: ");
+                logger.log("This user name is taken, please enter a different username: ");
             }
         } while(userNameTaken);
 
-        System.out.println("Please enter your password: ");
+        logger.log("Please enter your password: ");
         String password = input.nextLine();
-        System.out.println("Re enter your password: ");
+        logger.log("Re enter your password: ");
         String passwordCheck = input.nextLine();
 
         while(!password.equals(passwordCheck)){
-            System.out.println("Both password do not match, please try again");
+            logger.log("Both password do not match, please try again");
             passwordCheck = input.nextLine();
         }
 
-        System.out.println("Provide security question: ");
+        logger.log("Provide security question: ");
         String securityQuestion = input.nextLine();
-        System.out.println("Provide answer to the question: ");
+        logger.log("Provide answer to the question: ");
         String securityQuestionAnswer = input.nextLine();
 
         return new User(name, userName, password, securityQuestion, securityQuestionAnswer);

@@ -2,12 +2,14 @@ import java.util.Scanner;
 
 import Enums.ApplicationState;
 import Service.AuthenticationService;
+import Service.LogService;
 import Service.QueryService;
 import Service.UserRegistrationService;
 
 public class DatabaseManagementSystem {
     private static Scanner input = new Scanner(System.in);
     private static ApplicationState applicationState = ApplicationState.INIT; 
+    private static LogService logger = LogService.getLogger(DatabaseManagementSystem.class);
     
     /** 
      * @apiNote This is a driver code for the dbm system. It maintains the application state and invokes the respective services
@@ -43,7 +45,7 @@ public class DatabaseManagementSystem {
                     break;
             }
         }
-        System.out.println("Bye");
+        logger.log("Bye");
     }
 
     /**
@@ -51,7 +53,7 @@ public class DatabaseManagementSystem {
      * @return Boolean
      */
     private static Boolean checkForExit(){
-        System.out.println("Do you want to quit? (y/n)");
+        logger.log("Do you want to quit? (y/n)");
         String response = input.next();
         return response.equalsIgnoreCase("y");
     }
@@ -62,7 +64,7 @@ public class DatabaseManagementSystem {
      * @return Boolean
      */
     private static Boolean checkForExistingUser(){
-        System.out.println("Are you an existing user? (y/n)");
+        logger.log("Are you an existing user? (y/n)");
         String response = input.next();
         return response.equalsIgnoreCase("y");
     }

@@ -14,7 +14,7 @@ import Model.User;
 public class AuthenticationService {
     private static Scanner input = new Scanner(System.in);
     private static User activeUser;
-    
+    private static LogService logger = LogService.getLogger(AuthenticationService.class);
     
     
     /** 
@@ -35,17 +35,17 @@ public class AuthenticationService {
      * @return true if user logged in otherwise false
      */
     public static Boolean logInUser(){
-        System.out.println("Enter username: ");
+        logger.log("Enter username: ");
         String username = input.nextLine();
-        System.out.println("Enter password: ");
+        logger.log("Enter password: ");
         String password = input.nextLine();
         Object response = AuthenticationService.authenticate(username, password);
         if(response instanceof User){
             AuthenticationService.setActiveUser((User) response);
-            System.out.println("User logged In: "+activeUser.getUsername());
+            logger.log("User logged In: "+activeUser.getUsername());
         } else if(response instanceof String){
             String errorMessage = (String)response;
-            System.out.println(errorMessage);
+            logger.log(errorMessage);
         } 
         return response instanceof User ? true : false;
     }
