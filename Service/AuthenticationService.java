@@ -1,6 +1,5 @@
 package Service;
 
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
@@ -9,19 +8,32 @@ import java.util.Scanner;
 
 import Model.User;
 
+/**
+ * @apiNote This service takes care of handling authentication related processes of user
+ */
 public class AuthenticationService {
     private static Scanner input = new Scanner(System.in);
     private static User activeUser;
     
     
+    
+    /** 
+     * @apiNote To get current logged in user in the system
+     * @return User
+     */
     public static User getActiveUser() {
         return activeUser;
     }
 
-    public static void setActiveUser(User activeUser) {
+    private static void setActiveUser(User activeUser) {
         AuthenticationService.activeUser = activeUser;
     }
 
+    /**
+     * @apiNote If the user needs to be logged in, use this API
+     * This method will take care of taking user input about username and password
+     * @return true if user logged in otherwise false
+     */
     public static Boolean logInUser(){
         System.out.println("Enter username: ");
         String username = input.nextLine();
@@ -29,7 +41,7 @@ public class AuthenticationService {
         String password = input.nextLine();
         Object response = AuthenticationService.authenticate(username, password);
         if(response instanceof User){
-            AuthenticationService.activeUser = (User) response;
+            AuthenticationService.setActiveUser((User) response);
             System.out.println("User logged In: "+activeUser.getUsername());
         } else if(response instanceof String){
             String errorMessage = (String)response;
@@ -38,6 +50,12 @@ public class AuthenticationService {
         return response instanceof User ? true : false;
     }
 
+    /**
+     * 
+     * @param username
+     * @param password
+     * @return User model if log in succesfull otherwise appropriate error message
+     */
     private static Object authenticate(String username, String password){
         Object response = null;
         if(username != null && password != null){
@@ -70,6 +88,11 @@ public class AuthenticationService {
         return response;
     }
 
+    /**
+     * To check if the user already exists
+     * @param username
+     * @return true if user exists else false
+     */
     private static Boolean checkIfUserExists(String username){
         Boolean userExists = false;
         List<User> users = PersistenceService.getAllUsers();
@@ -81,6 +104,12 @@ public class AuthenticationService {
         return userExists;
     }
 
+    /**
+     * creates a message digest of password to store in db
+     * @param password
+     * @return string of message digest
+     * @throws NoSuchAlgorithmException
+     */
     private static String encryptPassword(String password) throws NoSuchAlgorithmException{
         String encryptedPassword = password;
         MessageDigest MD5 = MessageDigest.getInstance("MD5");

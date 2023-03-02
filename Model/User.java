@@ -1,5 +1,8 @@
 package Model;
 
+/**
+ * @implNote This Model is used to specify attributes of a user that will be present in DBMS
+ */
 public class User {
     private String name;
     private String username;

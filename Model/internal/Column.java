@@ -5,6 +5,9 @@ import java.util.List;
 import Enums.ConstraintType;
 import Enums.DataType;
 
+/**
+ * @implNote Represents a column of a table
+ */
 public class Column {
     String name;
     DataType dataType;
@@ -18,6 +21,10 @@ public class Column {
         this.constraints = constraints;
     }
     
+    
+    /** 
+     * @return DataType
+     */
     public DataType getDataType() {
         return dataType;
     }

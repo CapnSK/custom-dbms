@@ -1,5 +1,8 @@
 package Enums;
 
+/**
+ * @implNote These are the data manipulation commands allowed in this DBMS
+ */
 public enum DMLCommandType {
     SELECT("SELECT"), INSERT("INSERT"), UPDATE("UPDATE"), DELETE("DELETE");
     //other sql DML commands

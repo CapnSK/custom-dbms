@@ -28,6 +28,10 @@ import javafx.util.Pair;
 
 public class QueryService {
     private static Scanner input = new Scanner(System.in);
+    
+    /** Driver method to accept queries and call respective APIs
+     * @return Boolean
+     */
     public static Boolean acceptQueries(){
         if(AuthenticationService.getActiveUser() != null){
             if(!PersistenceService.dbExists(AuthenticationService.getActiveUser())){
@@ -52,6 +56,11 @@ public class QueryService {
         return true;
     }
 
+    
+    /** 
+     * @apiNote resolves queries
+     * @param query
+     */
     private static void resolveQueries(String query){
         if(query != null && !query.isEmpty()){
             List<String> tokens = Arrays.asList(query.split(" ", -1));
@@ -93,8 +102,14 @@ public class QueryService {
         }
     }
 
-
+    /**
+     * DML class to handle data manipulation queries
+     */
     private static class DML{
+        /**
+         * @apiNote handles insert query. Performs the query and prints result
+         * @param query
+         */
         public static void handleInsertQuery(String query){
             /*
              * FORMAT 1: INSERT INTO tablename (col1name, col2name, ...) VALUES (v1, v2, ...);
@@ -180,6 +195,12 @@ public class QueryService {
 
         }
 
+        /**
+         * Used to check integrity - 1] data type integrity 2] Constraint integrity
+         * @param table
+         * @param values
+         * @return
+         */
         private static Boolean validateValues(Table table, List<Pair<Column, String>> values){
             Boolean isValid = false;
             if(values != null){
@@ -196,6 +217,12 @@ public class QueryService {
             return isValid;
         }
 
+        /**
+         * Used to check integrity  data type integrity
+         * @param column
+         * @param value
+         * @return
+         */
         private static Boolean dataIntegrity(Column column, String value){
             Boolean dataValid = true;
             switch(column.getDataType()){
@@ -251,6 +278,13 @@ public class QueryService {
             return dataValid;
         }
 
+        /**
+         * Used to check integrity - constraint integrity
+         * @param table
+         * @param column
+         * @param value
+         * @return
+         */
         private static Boolean constraintIntegrity(Table table, Column column, String value){
             Boolean constraintIntegrityValid = true;
             if(table != null && column != null && value != null && column.getConstraints() != null && !column.getConstraints().isEmpty()){
@@ -302,6 +336,11 @@ public class QueryService {
             return values;
         }
 
+        /**
+         * validates insert query as per required format
+         * @param query
+         * @return
+         */
         private static Boolean validateInsertQuery(String query){
             Boolean queryValid = false;
             if(query != null){
@@ -315,7 +354,10 @@ public class QueryService {
 
 
 
-
+        /**
+         * @apiNote handles delete query and performs delete operation
+         * @param query
+         */
         public static void handleDeleteQuery(String query){
             if(query != null && validateDeleteQuery(query)){
                 Pattern pattern = Pattern.compile(Constants.DELETE_QUERY_REGEXP, Pattern.CASE_INSENSITIVE);
@@ -382,12 +424,23 @@ public class QueryService {
             }
         }
 
+        /**
+         * Used to deep compare two rows by each value
+         * @param row1
+         * @param row2
+         * @return
+         */
         private static Boolean IsEqual(List<String> row1, List<String> row2){
             return (row1.size() == row2.size()) && IntStream.range(0, row1.size()).boxed().map(index->{
                 return row1.get(index).equals(row2.get(index));
             }).allMatch(valid->valid);
         }
 
+        /**
+         * validates delete query as per right format
+         * @param query
+         * @return
+         */
         private static Boolean validateDeleteQuery(String query){
             Pattern pattern = Pattern.compile(Constants.DELETE_QUERY_REGEXP, Pattern.CASE_INSENSITIVE);
             Matcher matcher = pattern.matcher(query);
@@ -395,7 +448,10 @@ public class QueryService {
         }
 
 
-
+        /**
+         * @apiNote handles update query and performs update operation in db
+         * @param query
+         */
         public static void handleUpdateQuery(String query){
             //temp
             if(query != null && validateUpdateQuery(query)){
@@ -492,12 +548,21 @@ public class QueryService {
             return mappedValues;
         }
 
+        /**
+         * validates update query as per the format in reg ex
+         * @param query
+         * @return
+         */
         private static Boolean validateUpdateQuery(String query){
             Pattern pattern = Pattern.compile(Constants.UPDATE_QUERY_REGEXP, Pattern.CASE_INSENSITIVE);
             Matcher matcher = pattern.matcher(query);
             return matcher.matches();
         }
 
+        /**
+         * @apiNote handles select query and fetch data from db
+         * @param query
+         */
         public static void handleSelectQuery(String query){
             /**
              * Normal SQL query -
@@ -591,6 +656,13 @@ public class QueryService {
             
         }
 
+        /**
+         * This method applies where clause on the original data and returns pruned data
+         * @param originalData
+         * @param conditions
+         * @param columns
+         * @return
+         */
         private static List<List<String>> applyWhereClause(List<List<String>> originalData, Pair<List<Expression>, String> conditions, List<Column> columns){
             List<List<String>> prunedData = originalData;
             if(conditions != null && conditions.getKey() != null && !conditions.getKey().isEmpty() && columns != null){
@@ -626,6 +698,13 @@ public class QueryService {
             return prunedData;
         }
 
+        /**
+         * this is a helper method to evaluate the condition and use in where clause
+         * @param actualValue
+         * @param expression
+         * @param column
+         * @return
+         */
         private static Boolean evaluateCondition(
             String actualValue, 
             Expression expression,
@@ -776,6 +855,11 @@ public class QueryService {
             return expressions;
         }
 
+        /**
+         * validates select query as per the format
+         * @param query
+         * @return
+         */
         private static Boolean validateSelectQuery(String query){
             Boolean queryValid = false;
             if(query != null && !query.isEmpty()){
@@ -788,7 +872,15 @@ public class QueryService {
         }
     }
 
+    /**
+     * DDL class for data definition commands
+     */
     private static class DDL{
+        /**
+         * @apiNote handles create query and creates table schema, stores in db
+         * @param query
+         * @param tokens
+         */
         public static void handleCreateQuery(String query, List<String> tokens){
             /*
              * FORMAT: CREATE TABLE tablename (
@@ -826,6 +918,11 @@ public class QueryService {
             
         }
 
+        /**
+         * extracts columns from the create query
+         * @param query
+         * @return
+         */
         private static List<Column> extractColumns(String query){
             List<String> columns = Arrays.asList(query.substring(query.indexOf("("), query.lastIndexOf(")")).split(",", -1));
             AtomicBoolean wrongColumnDefinition = new AtomicBoolean(false);
@@ -852,6 +949,11 @@ public class QueryService {
             return mappedColumns;
         }
 
+        /**
+         * maps raw data type to enum
+         * @param rawType
+         * @return
+         */
         private static DataType mapDataType(String rawType){
             DataType dataType = null;
             if(rawType != null){
@@ -865,6 +967,11 @@ public class QueryService {
             return dataType;
         }
 
+        /**
+         * retrieves constraints from token string
+         * @param token
+         * @return
+         */
         private static List<ConstraintType> retrieveConstraints(String token){
             List<ConstraintType> constraints = null;
             if(token != null){
@@ -899,6 +1006,12 @@ public class QueryService {
             return constraints;
         }
 
+        /**
+         * validates create query as per the format
+         * @param query
+         * @param tokens
+         * @return
+         */
         private static Boolean validateCreateQuery(String query, List<String> tokens){
             Boolean queryValid = true;
             //1. check brackets

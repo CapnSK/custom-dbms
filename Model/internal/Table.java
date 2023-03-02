@@ -2,6 +2,9 @@ package Model.internal;
 
 import java.util.List;
 
+/**
+ * @implNote this model represents table schema in memory
+ */
 public class Table {
     String name;
     List<Column> columns;
@@ -15,6 +18,10 @@ public class Table {
         this.columns = columns;
     }
 
+    
+    /** 
+     * @return String
+     */
     public String getName() {
         return name;
     }

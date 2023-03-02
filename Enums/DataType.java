@@ -1,5 +1,8 @@
 package Enums;
 
+/**
+ * @implNote Allowed datatypes in this DBMS
+ */
 public enum DataType {
     //Numeric Data types
     INT("INT"), DOUBLE("DOUBLE"),

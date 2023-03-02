@@ -11,8 +11,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -22,7 +20,6 @@ import Model.User;
 import Model.internal.Column;
 import Model.internal.Table;
 import Utils.Constants;
-import javafx.util.Pair;
 
 public class PersistenceService {
     private static List<User> usersCache = null;
@@ -35,6 +32,12 @@ public class PersistenceService {
     private static String USER_STORE = "users.txt";
 
 
+    
+    /** 
+     * @apiNote Stores user and credentials in db
+     * @param user
+     * @return Boolean
+     */
     public static Boolean storeUserCredentials(User user){
         Boolean userStored = true;
         if(user != null && user.getName() != null 
@@ -80,10 +83,19 @@ public class PersistenceService {
         return userStored;
     }
 
+    /**
+     * @apiNote Use this API to get all the users in system
+     * @return List of all User models
+     */
     public static List<User> getAllUsers(){
         return getAllUsers(false);
     }
 
+    /**
+     * @apiNote Use this API to get all the users in system (or cache) if cache present
+     * @param forceUpdate true means fetch from db else if cache is present return that value
+     * @return
+     */
     public static List<User> getAllUsers(Boolean forceUpdate){
         if(forceUpdate || (usersCache == null || !usersCache.isEmpty())){
 
@@ -118,7 +130,12 @@ public class PersistenceService {
         }
         return usersCache;
     }
-
+    
+    /**
+     * @apiNote Checks if user db exists or not
+     * @param user
+     * @return false if db for the user does not exist
+     */
     public static Boolean dbExists(User user){
         Boolean dbFound = false;
         if(user != null && user.getUsername() != null){
@@ -134,6 +151,11 @@ public class PersistenceService {
         return dbFound;
     }
 
+    /**
+     * @apiNote returns the database present for the given user
+     * @param user
+     * @return
+     */
     public static String getDBName(User user){
         String dbName = null;
         if(user != null && user.getUsername() != null && dbExists(user)){
@@ -147,6 +169,12 @@ public class PersistenceService {
         return dbName;
     }
 
+    /**
+     * @apiNote creates a database for user with given name
+     * @param user
+     * @param dbName
+     * @return
+     */
     public static Boolean createDB(User user, String dbName){
         Boolean dbCreated = false;;
         if(!dbExists(user)){
@@ -157,6 +185,12 @@ public class PersistenceService {
         return dbCreated;
     }
 
+    /**
+     * @apiNote creates a table with given table schema and for the give user
+     * @param table
+     * @param user
+     * @return
+     */
     public static Boolean createTable(Table table, User user){
         Boolean tableCreated = false;
         if(table != null && table.getName() != null && table.getColumns() != null){
@@ -209,6 +243,12 @@ public class PersistenceService {
         return tableCreated;
     }
 
+    /**
+     * @apiNote fetches table schema from db
+     * @param tableName
+     * @param user
+     * @return
+     */
     public static Table fetchTableSchema(String tableName, User user){
         Table table = null;
         if(tableName != null && user.getUsername() != null && dbExists(user) && tableExists(tableName, user)){
@@ -251,6 +291,12 @@ public class PersistenceService {
         return table;
     }
 
+    /**
+     * @apiNote checks if table with given name exists for the user or not
+     * @param tableName
+     * @param user
+     * @return
+     */
     public static Boolean tableExists(String tableName, User user){
         Boolean tableExists = false;
         if(tableName != null && user.getUsername() != null && dbExists(user)){
@@ -260,6 +306,12 @@ public class PersistenceService {
         return tableExists;
     }
 
+    /**
+     * @apiNote fetches data from the table with given name and for given user
+     * @param tableName
+     * @param user
+     * @return
+     */
     public static List<List<String>> getTableData(String tableName, User user){
         List<List<String>> values = null;
         if(tableName != null && user != null && tableExists(tableName, user)){
@@ -316,10 +368,25 @@ public class PersistenceService {
         return values;
     }
 
+    /**
+     * @apiNote inserts data in table (rewrites completely if already present)
+     * @param tablename
+     * @param values
+     * @param user
+     * @return
+     */
     public static Boolean insertData(String tablename, List<List<String>> values, User user){
         return insertData(tablename, values, user, false);
     }
 
+    /**
+     * @apiNote inserts data in table (rewrites completely if append is false)
+     * @param tablename
+     * @param values
+     * @param user
+     * @param append
+     * @return
+     */
     public static Boolean insertData(String tablename, List<List<String>> values, User user, Boolean append){
         /** 
          * Assumption
@@ -362,6 +429,13 @@ public class PersistenceService {
         return insertedSuccessfully.get();
     }
 
+    /**
+     * @apiNote inserts given row in table
+     * @param tablename
+     * @param user
+     * @param row
+     * @return
+     */
     public static Boolean insertRow(String tablename, User user, List<String> row){
         /** 
          * Assumptions

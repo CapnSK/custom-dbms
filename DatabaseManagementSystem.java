@@ -8,6 +8,11 @@ import Service.UserRegistrationService;
 public class DatabaseManagementSystem {
     private static Scanner input = new Scanner(System.in);
     private static ApplicationState applicationState = ApplicationState.INIT; 
+    
+    /** 
+     * @apiNote This is a driver code for the dbm system. It maintains the application state and invokes the respective services
+     * @param args
+     */
     public static void main(String[] args){
         while(DatabaseManagementSystem.applicationState != ApplicationState.EXIT){
             switch(DatabaseManagementSystem.applicationState){
@@ -51,6 +56,11 @@ public class DatabaseManagementSystem {
         return response.equalsIgnoreCase("y");
     }
 
+    
+    /** 
+     * @implNote checks if user should be logged in or new user 
+     * @return Boolean
+     */
     private static Boolean checkForExistingUser(){
         System.out.println("Are you an existing user? (y/n)");
         String response = input.next();

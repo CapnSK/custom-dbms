@@ -1,5 +1,8 @@
 package Enums;
 
+/**
+ * @implNote These are the constraints (table/ colum level)
+ */
 public enum ConstraintType {
     PRIMARY_KEY("PRIMARY KEY"), NOT_NULL("NOT NULL"), UNIQUE("UNIQUE"), ;
     //more constraints

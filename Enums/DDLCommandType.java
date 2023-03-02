@@ -1,5 +1,8 @@
 package Enums;
 
+/**
+ * @implNote Data definition type commands allowed
+ */
 public enum DDLCommandType {
     CREATE("CREATE");
     //other sql DDL commands

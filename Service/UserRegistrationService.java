@@ -13,6 +13,11 @@ public class UserRegistrationService {
     private static String encryptionAlgorithm = "MD5";
 
     private static Scanner input = new Scanner(System.in);
+    
+    /** 
+     * returns true if the user is registered successfully
+     * @return Boolean
+     */
     public static Boolean registerUser(){
         User user = UserRegistrationService.createUserModel();
         try {
@@ -30,6 +35,10 @@ public class UserRegistrationService {
         return userStored;
     }
 
+    /**
+     * creates user model by taking input from console
+     * @return
+     */
     private static User createUserModel(){
         System.out.println("Please enter your name: ");
         String name = input.nextLine();
@@ -62,7 +71,11 @@ public class UserRegistrationService {
         return new User(name, userName, password, securityQuestion, securityQuestionAnswer);
     }
 
-
+    /**
+     * checks if user already exists in the db
+     * @param username
+     * @return
+     */
     private static Boolean checkIfUserExists(String username){
         Boolean userExists = false;
         List<User> users = PersistenceService.getAllUsers();
@@ -74,6 +87,12 @@ public class UserRegistrationService {
         return userExists;
     }
 
+    /**
+     * encrypts the user password as a message digest
+     * @param password
+     * @return
+     * @throws NoSuchAlgorithmException
+     */
     private static String encryptPassword(String password) throws NoSuchAlgorithmException{
         String encryptedPassword = password;
         MessageDigest MD5 = MessageDigest.getInstance(encryptionAlgorithm);
