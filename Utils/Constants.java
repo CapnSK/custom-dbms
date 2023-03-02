@@ -13,7 +13,7 @@ public class Constants {
 
     public final static String SQL_DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
     public final static String SQL_DEFAULT_TIME_FORMAT = "HH-mm-ss";
-    public final static String SQL_DEFAULT_DATETIME_FORMAT = "yyyy-MM-dd HH-mm-ss";
+    public final static String SQL_DEFAULT_DATETIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
     private Constants(){
 

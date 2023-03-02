@@ -203,7 +203,12 @@ public class PersistenceService {
                 File tableSchemaFile = new File(tableSchemaFileName);
                 Boolean fileCreated = false;
                 try {
-                    fileCreated = tableSchemaFile.createNewFile();
+                    if(tableSchemaFile.exists()){
+                        tableSchemaFile.delete();
+                    }
+                    if(!tableSchemaFile.exists()){
+                        fileCreated = tableSchemaFile.createNewFile();
+                    }
                 } catch (IOException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
@@ -219,12 +224,14 @@ public class PersistenceService {
                                 fileWriter.append(column.getName());
                                 fileWriter.append(Constants.FILE_DELIMETER);
                                 fileWriter.append(column.getDataType().getLabel());
-                                fileWriter.append(Constants.FILE_DELIMETER);
-                                fileWriter.append(
-                                    String.join(
-                                        Constants.FILE_DELIMETER,
-                                        column.getConstraints().stream().map(ConstraintType::getLabel).collect(Collectors.toList()))
-                                );
+                                if(column.getConstraints() != null){
+                                    fileWriter.append(Constants.FILE_DELIMETER);
+                                    fileWriter.append(
+                                        String.join(
+                                            Constants.FILE_DELIMETER,
+                                            column.getConstraints().stream().map(ConstraintType::getLabel).collect(Collectors.toList()))
+                                    );
+                                }
                                 fileWriter.append("\n");
                             } catch (IOException e) {
                                 fileWriteSuccesful = false;
@@ -258,12 +265,12 @@ public class PersistenceService {
                     String input = fileReader.nextLine();
                     if(!input.equals("\n") && !input.isEmpty()){
                         List<String> columnInfo = Arrays.asList(input.split(Constants.FILE_DELIMETER.replace("$", "\\$"),3));
-                        if(columnInfo.size() == 3){
+                        if(columnInfo.size() >= 2){
                             String columnName = columnInfo.get(0);
                             DataType columnType = DataType.valueOf(columnInfo.get(1));
 
-                            List<String> rawConstraints = Arrays.asList(columnInfo.get(2).split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1));
-                            List<ConstraintType> constraints = rawConstraints.stream().map(c->{
+                            List<String> rawConstraints = columnInfo.size() == 3 ? Arrays.asList(columnInfo.get(2).split(Constants.FILE_DELIMETER.replace("$", "\\$"), -1)) : null;
+                            List<ConstraintType> constraints = rawConstraints != null ? rawConstraints.stream().map(c->{
                                 ConstraintType constraint = null;
                                 switch(c){
                                     case "PRIMARY KEY":
@@ -278,7 +285,7 @@ public class PersistenceService {
                                     default:
                                 }
                                 return constraint;
-                            }).filter(Objects::nonNull).collect(Collectors.toList());
+                            }).filter(Objects::nonNull).collect(Collectors.toList()) : null;
                             columns.add(new Column(columnName, columnType, constraints));
                         }
                     }
@@ -445,10 +452,19 @@ public class PersistenceService {
         Boolean insertedSuccessfully = true;
         if(tablename != null && user != null && tableExists(tablename, user)){
             File dataFile = new File(ROOT_DIR + DATA_DIR + user.getUsername()+"/"+getDBName(user)+"/"+tablename+".data");
+            if(dataFile.getParentFile() != null && dataFile.getParentFile().exists() && !dataFile.exists()){
+                Boolean fileCreated = false;
+                try {
+                    fileCreated = dataFile.createNewFile();
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
             if(dataFile.exists() && dataFile.isFile()){
                 try(BufferedWriter fileWriter = new BufferedWriter(new FileWriter(dataFile, true))){
-                    fileWriter.append("\n");
                     fileWriter.append(String.join(Constants.FILE_DELIMETER,row));
+                    fileWriter.append("\n");
                 } catch(IOException e){
                     insertedSuccessfully = false;
                     e.printStackTrace();

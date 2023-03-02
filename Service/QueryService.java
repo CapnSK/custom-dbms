@@ -1,5 +1,6 @@
 package Service;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -268,8 +269,9 @@ public class QueryService {
                 case DATETIME:
                     SimpleDateFormat datetimeFormat = new SimpleDateFormat(Constants.SQL_DEFAULT_DATETIME_FORMAT);
                     try{
-                        datetimeFormat.format(value);
-                    } catch( IllegalArgumentException e){
+                        String invertedCommaRemovedDate = value.replaceAll("\"","");
+                        datetimeFormat.parse(invertedCommaRemovedDate);
+                    } catch( ParseException e){
                         e.printStackTrace();
                         dataValid = false;
                     }
